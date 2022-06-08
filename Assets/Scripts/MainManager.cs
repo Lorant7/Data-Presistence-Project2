@@ -3,7 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
+/*
+ Things to challenge yourself:
+Create a separate High Score scene that displays the high score.
+Display multiple high scores instead of just one.
+Create a Settings scene that allows users to configure gameplay, and use that information between sessions. 
+ */
 public class MainManager : MonoBehaviour
 {
     public Brick BrickPrefab;
@@ -15,13 +22,77 @@ public class MainManager : MonoBehaviour
     
     private bool m_Started = false;
     private int m_Points;
+    private int best_score = 0;
     
     private bool m_GameOver = false;
 
-    
+    public void Awake()
+    {
+        LoadScore();
+    }
+
+    [System.Serializable]
+    class SaveData
+    {
+        public int Score = 0;
+        public string Name;
+    }
+
+    public static int GetBestScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            return data.Score;
+        }
+        return 0;
+    }
+
+    public static string GetBestName()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            return data.Name;
+        }
+        return null;
+    }
+    public void SaveScore()
+    {
+        SaveData data = new SaveData();
+        data.Score = m_Points;
+        data.Name = TextInputManager.Instance.Name;
+            
+        string json = JsonUtility.ToJson(data);
+        File.WriteAllText(Application.persistentDataPath + "/savefile.json", json);
+    }
+
+    public void LoadScore()
+    {
+        string path = Application.persistentDataPath + "/savefile.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            best_score = data.Score;
+            TextInputManager.Instance.BestScore = data.Score;
+
+            Text topScore = gameObject.GetComponentInChildren<Text>();
+            if (topScore != null)
+            {
+                topScore.text = $"Best Score : {data.Score} Name : {data.Name}";
+            }
+        }
+    }
+
     // Start is called before the first frame update
     void Start()
     {
+
         const float step = 0.6f;
         int perLine = Mathf.FloorToInt(4.0f / step);
         
@@ -55,6 +126,12 @@ public class MainManager : MonoBehaviour
         }
         else if (m_GameOver)
         {
+            if(m_Points > best_score)
+            {
+                print("m_points: " + m_Points + "   best_score: " + best_score);
+                SaveScore();
+            }
+            LoadScore();
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
